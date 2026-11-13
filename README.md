@@ -38,9 +38,10 @@ For heavy traffic, Flowise also runs in queue mode with workers, Postgres and Re
 
 ### Implementation Details
 
-- **Tested on Railway:** PENDING
+- **Tested on Railway:** the first boot created the admin before the domain went live; a second sign-up was refused ("You can only have one organization"); the admin logged in through the API, a wrong password and anonymous API calls got 401; the account and data survived a redeploy. Building a flow with a real model provider wasn't tested.
+- **Upstream image fixes:** the official `flowiseai/flowise:3.1.4` image installs `connect-sqlite3` 0.9.17, which breaks Flowise's SQLite login sessions at startup (`this.db.exec is not a function`); this image swaps in 0.9.18. Three nodes still fail to load in that image (ReAct Agent for Chat Models, ReAct Agent for LLMs and AWS Bedrock LLM); the tool-calling agents and the other nodes load.
 - **Variables after the first boot:** `ADMIN_EMAIL` and `ADMIN_PASSWORD` are read once. Change your email or password inside Flowise afterwards; editing the variables does nothing.
-- **Memory:** PENDING
+- **Memory:** needs 1 GB. Flowise peaks at about 640 MB while it loads its nodes and idles around 500 MB, so it can't start within the Free plan's 0.5 GB; there the service stays up and its page says to raise the memory limit. At 1 GB it ran through a soak with no out-of-memory kills, and the template sizes Node's heap to the limit you set.
 - **Image:** `ghcr.io/two-workspaces/flowiseai`, built from this repository's Dockerfile on `flowiseai/flowise:3.1.4`.
 
 ## Why Deploy FlowiseAI on Railway?

@@ -28,6 +28,19 @@ fi
 PORT="${PORT:-3000}"
 cd /home/node
 
+# Flowise peaks at about 640 MB while loading its nodes, so under 0.5 GB (Railway's Free
+# plan) the kernel kills it over and over and the logs never say why. Say it on the page.
+if [ "$lim" != max ] && [ "$lim" -lt 734003200 ] 2>/dev/null; then
+  mb=$((lim / 1048576))
+  echo "Flowise needs about 1 GB of memory and this service has ${mb} MB: serving a notice instead. Raise the memory limit, then redeploy."
+  exec su-exec node env PORT="$PORT" MB="$mb" node -e '
+    const msg = `Flowise could not start: it needs about 1 GB of memory and this service has ${process.env.MB} MB (Railway'"'"'s Free plan allows 0.5 GB). Raise the memory limit in the service settings, then redeploy.`;
+    require("http").createServer((q, r) => {
+      if (q.url === "/api/v1/ping") { r.end("pong"); return; }
+      r.writeHead(503, {"content-type": "text/plain; charset=utf-8"}); r.end(msg + "\n");
+    }).listen(+process.env.PORT, "::");'
+fi
+
 # First boot: Flowise opens a sign-up page that makes whoever loads it first the
 # owner. Start it on a port Railway doesn't route, create the admin from the
 # variables, then restart it on the public port.
