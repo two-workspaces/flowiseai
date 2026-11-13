@@ -16,8 +16,8 @@ export NUMBER_OF_PROXIES="${NUMBER_OF_PROXIES:-1}"
 [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ] && export APP_URL="${APP_URL:-https://$RAILWAY_PUBLIC_DOMAIN}"
 export DISABLE_FLOWISE_TELEMETRY="${DISABLE_FLOWISE_TELEMETRY:-true}"
 
-# The image sets --max-old-space-size=8192, so on a small plan Node grows past the
-# container's memory and is killed instead of collecting garbage. Use 75% of the limit.
+# Node sizes its heap from the host's memory, not the container's, so on a small plan it
+# grows past the limit and is killed instead of collecting garbage. Use 75% of the limit.
 lim=$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo max)
 if [ "$lim" != max ] && [ "$lim" -gt 0 ] 2>/dev/null; then
   heap=$((lim / 1048576 * 3 / 4))
@@ -26,7 +26,7 @@ if [ "$lim" != max ] && [ "$lim" -gt 0 ] 2>/dev/null; then
 fi
 
 PORT="${PORT:-3000}"
-cd /usr/src/flowise
+cd /home/node
 
 # First boot: Flowise opens a sign-up page that makes whoever loads it first the
 # owner. Start it on a port Railway doesn't route, create the admin from the
@@ -35,7 +35,7 @@ if [ ! -f "$DATA/.railway-admin" ]; then
   : "${ADMIN_EMAIL:?Set ADMIN_EMAIL (the admin login)}"
   : "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD}"
   echo "First boot: creating the admin account $ADMIN_EMAIL"
-  PORT=3999 su-exec node pnpm start > /tmp/setup.log 2>&1 &
+  PORT=3999 su-exec node flowise start > /tmp/setup.log 2>&1 &
   pid=$!
   i=0
   until curl -sf http://127.0.0.1:3999/api/v1/ping >/dev/null; do
@@ -64,4 +64,4 @@ fi
 unset ADMIN_PASSWORD
 
 echo "Flowise on port $PORT${NODE_OPTIONS:+ ($NODE_OPTIONS)}"
-exec su-exec node env PORT="$PORT" pnpm start
+exec su-exec node env PORT="$PORT" flowise start
